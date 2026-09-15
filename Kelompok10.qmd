@@ -1,0 +1,247 @@
+---
+title: "Tugas Praktikum 2"
+subtitle: "Data Wrangling dan Data Visualization"
+author: "Thariq Irza - M0501261075 <br>
+         Angelina - M0501261007 <br>
+         Ratu Ajeng Fadila Husen - M0501261091"
+date: "2026-09-12"
+format:
+  html:
+    embed-resources: true
+    theme: cosmo
+    toc: true
+    toc-depth: 2
+    toc-title: "Daftar Isi"
+    number-sections: true
+    smooth-scroll: true
+    fig-width: 10
+    fig-height: 5.8
+    fig-dpi: 300
+execute:
+  echo: true
+  warning: false
+  message: false  
+---
+
+# Data Wrangling Pembersihan Data Mahasiswa
+## Dataframe
+```{r}
+nilai_raw <- data.frame(
+    Nama = c('Andi','Budi','Citra', 'Dewi', 'Andi'),
+    Nilai = c(80,90,NA,75,80),
+    Statistika = c(85,88,78,"-",85),
+    Umur= c(21,22,20,21,21))
+
+nilai_raw
+```
+
+## Nilai hilang dan Transformasi tanda hubung
+
+```{r}
+# Identifikasi nilai hilang
+sum_isna <- function(df) {
+  sum(is.na(df))}
+sum_isna(nilai_raw)
+```
+
+```{r}
+#Transformasi tanda hubung menjadi NA
+nilai_raw[,'Statistika'] = as.numeric(gsub("-", "NA", nilai_raw$Statistika))
+```
+
+```{r}
+# Identifikasi kembali nilai hilang
+sum_isna <- function(df) {
+  sum(is.na(df))}
+sum_isna(nilai_raw)
+```
+
+::: {.callout-note}
+Pada proses pertama identifikasi nilai hilang, hanya terdapat 1 nilai hilang (NA) dari dataset. Namun pada dataframe sendiri terdapat nilai hilang yang disimbolkan dengan tanda hubung (-) sehingga dilakukan perubahan format dari tanda hubung (-) menjadi nilai NA. Sehingga terdapat 2 nilai hilang setelah dilakukan identifikasi kembali
+:::
+
+## Imputasi data NA pada kolom Statistika
+
+```{r}
+# Imputasi data NA dengan nilai mean pada kolom Statistika
+nilai_raw$Statistika <- ifelse(is.na(nilai_raw$Statistika), mean(nilai_raw$Statistika, na.rm = TRUE), nilai_raw$Statistika)
+nilai_raw
+```
+
+## Kategori Umur
+
+```{r}
+nilai_raw$Status_Umur <- ifelse(
+  nilai_raw$Umur < 21,
+  "Muda",
+  "Dewasa"
+)
+nilai_raw
+```
+
+## Hapus duplikat
+
+```{r}
+nilai_raw <- unique(nilai_raw)
+nilai_raw
+```
+
+## Save data
+
+```{r}
+write.csv(nilai_raw, 'nilai_bersih.csv', row.names = FALSE)
+```
+
+# Subset dan Sort Multicriteria
+## Dataframe
+```{r}
+profil <- data.frame(
+    gender = c(rep("f", 3), rep("m",2), "f",rep("m",2), "f","m"),
+    v1= c(8,15,8,14,8,10,9,9,10,12),
+    v2= c(9,8,13,9,2,6,9,10,13,10),
+    v3= c(5,9,12,8,9,10,7,8,6,9),
+    v4= c(9,5,6,NA,16,9,13,10,7,8),
+    v5= c(9,10,7,11,8,10,9,5,10,17),
+    v6= c(9,8,9,10,10,10,12,10,12,7),
+    v7= c(5,10,14,6,8,9,10,6,13,9),
+    v8= c(9,12,12,11,9,7,9,12,9,10),
+    v9= c(11,9,12,11,8,7,11,6,6,7),
+    v10= c(8,15,9,8,9,11,7,8,9,7)
+)
+profil
+```
+
+## Subset
+```{r}
+kondisi_profil <- (profil$gender == 'm' & profil$v1 > 9) | (profil$gender == 'f' & profil$v3 <= 10)
+profil_subset <- profil[kondisi_profil, ]
+profil_subset
+```
+
+## Sort Multicriteria
+
+```{r}
+# Urutkan gender (descending) lalu v5 (ascending) 
+profil_filter <- profil_subset[order(-as.integer(factor(profil_subset$gender)), profil_subset$v5), ]
+profil_filter
+```
+
+## Save Data
+
+```{r}
+write.csv(profil_filter, 'profil_filter.csv', row.names = FALSE)
+```
+
+# Penggabungan dan Reshaping Data
+## Merge Dataframe
+
+```{r}
+df_sales <- data.frame(
+  id_toko = c("T1", "T2", "T3"),
+  Minggu1 = c(120, 150, 95),
+  Minggu2 = c(135, 140, 110)
+)
+
+df_info <- data.frame(
+  id = c("T1", "T2", "T4"),
+  Kota = c("Jakarta", "Bandung", "Surabaya")
+)
+
+gabung <- merge(df_sales, df_info, by.x="id_toko", by.y = "id", all=TRUE)
+
+gabung
+
+```
+
+## Reshape Penggabungan
+
+```{r}
+gabung_long <- reshape(
+  gabung, 
+  varying = c("Minggu1", "Minggu2"),
+  v.names = "Penjualan",
+  timevar = "Waktu",
+  times = c("Minggu1", "Minggu2"),
+  idvar = "id_toko",
+  direction = "long"
+)
+rownames(gabung_long) <- NULL
+gabung_long
+```
+
+## Save Data
+
+```{r}
+write.csv(gabung_long, 'penjualan_long.csv', row.names = FALSE)
+```
+
+# Eksplorasi Visual
+
+## Scatterplot CO2 dan beberapa variabel lain
+
+```{r}
+library(ggplot2)
+plot(x = CO2$conc, y = CO2$uptake,
+     type = "p", pch = 19, cex = 1.5, col= "Tomato", main = "Hubungan Konsentrasi CO2 dengan Tingkat Penyerapan CO2", xlab = "Konsentrasi CO2", ylab = "Tingkat Penyerapan CO2", xlim = c(0,1000), ylim = c(0,50))
+abline(h = mean(CO2$uptake), lty=2)
+```
+
+## Canvas 2X2 
+
+```{r}
+par(mfrow = c(2, 2))
+
+plot(x = CO2$conc, y = CO2$uptake, main = "Konsentrasi vs Tingkat Penyerapan", xlab = "Konsentrasi CO2", ylab = "Tingkat Penyerapan CO2")
+hist(CO2$uptake, main = "Histogram Tingkat Penyerapan CO2", xlab = "Tingkat Penyerapan CO2")
+boxplot(CO2$conc ~ CO2$Type, main = "Konsentrasi CO2 berdasarkan Type", xlab = "Type", ylab = "Konsentrasi CO2")
+boxplot(CO2$uptake ~ CO2$Treatment, main = "Uptake berdasarkan Treatment", xlab = "Treatment", ylab = "Uptake")
+```
+
+## Qplot dan GGplot2
+
+```{r}
+library(ggplot2)
+qplot(
+  x = conc,y = uptake,
+  data = CO2, color = Treatment, geom= "point"
+)
+```
+
+```{r}
+ggplot(CO2,
+  aes(x = conc, y = uptake, color = Treatment, shape = Type)
+) +
+  geom_point()
+```
+
+## GGplot2
+
+```{r}
+ggplot(CO2,
+  aes(x = conc, y = uptake, color = Treatment, shape = Type)
+) +
+  geom_point(size = 2)+
+  scale_x_continuous(name = "Konsentrasi CO2")+
+  stat_smooth()+
+  coord_cartesian(xlim=c(100,700))+
+  labs(title = "Hubungan antara Konsentrasi CO2 dengan Tingkat Penyerapan CO2")+
+  theme_bw()
+```
+
+::: {.callout-note}
+
+Berdasarkan grafik yang dihasilkan, dapat dilihat bahwa `konsentrasi CO2 (conc)` dan `tingkat penyerapan CO2 (uptake)` memiliki hubungan yang cenderung **positif**. Ketika `konsentrasi CO2 (conc)` **meningkat**, nilai `tingkat penyerapan CO2 (uptake)` pada tanaman secara umum juga **meningkat**. Namun, pada **konsentrasi yang lebih tinggi** (setelah konsentrasi CO2 berada di sekitar 350), peningkatan `tingkat penyerapan CO2` mulai terlihat lebih **lambat** dan cenderung **konstan**, sehingga hubungannya tidak sepenuhnya **linear**.
+
+Berdasarkan `Type` dan `Treatment`, terlihat bahwa terdapat perbedaan pola penyerapan antar kelompok tanaman. Kelompok `Type` yang berbeda (*Quebec* dan *Mississipi*) menunjukkan `tingkat penyerapan CO2` yang berbeda. Jika dilihat sekilas `Type Quebec (bentuk titik)` cenderung memiliki `tingkat penyerapan CO2` yang lebih **tinggi** dari `Type Mississipi (bentuk segitiga)`.
+
+Begitu pula dengan `Treatment` yang menunjukkan perbedaan pola yang dapat dilihat dari warna titik pada grafik. Tanaman dengan `Treatment nonchilled (warna pink)` cenderung memiliki tingkat penyerapan CO2 yang lebih tinggi daripada Tanaman dengan `Treatment chilled (warna biru)`.
+
+Meskipun demikian, berdasarkan kelompok tersebut secara umum tetap menunjukkan kecenderungan bahwa semakin **tinggi** `konsentrasi CO2 (conc)`, semakin **tinggi** pula `tingkat penyerapan CO2 (uptake)`. Hal ini menunjukkan bahwa pola `tingkat penyerapan CO2` tidak hanya berbeda berdasarkan konsentrasi CO2, tetapi juga berdasarkan `Type` dan `Treatment`.
+
+:::
+
+## Save Picture
+
+```{r}
+ggsave("co2_uptake_visualisasi.png")
+```
